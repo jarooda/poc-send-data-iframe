@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <title>SSO Login</title>
+    <style>
+      body { font-family: sans-serif; margin: 0; padding: 0; }
+      .sso-content {
+        padding: 32px;
+        text-align: center;
+      }
+      .sso-content button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sso-content">
+      <h2>SSO Login Page</h2>
+      <div id="sso-data"></div>
+      <p>This is a mock SSO login page.</p>
+      <button onclick="window.parent.postMessage('sso:close', '*')">Close</button>
+    </div>
+    <script>
+      // Notify parent that SSO iframe is ready
+      window.parent.postMessage({ type: 'sso-ready' }, '*');
+
+      window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'sso-data') {
+          var d = e.data.data;
+          document.getElementById('sso-data').innerHTML =
+            '<b>Received from root:</b><br>' +
+            Object.entries(d).map(([k,v]) => `${k}: ${v}`).join('<br>');
+        }
+      });
+    </script>
+  </body>
+</html>

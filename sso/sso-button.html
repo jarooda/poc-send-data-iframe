@@ -1,0 +1,23 @@
+
+<button id="sso-btn" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Login with SSO</button>
+<div id="sso-btn-data" style="margin-top:8px;font-size:14px;color:#333;"></div>
+<script>
+  var btn = document.getElementById('sso-btn');
+  var dataDiv = document.getElementById('sso-btn-data');
+  if (btn) {
+    // Listen for data from parent
+    btn.addEventListener('ssoButtonData', function(e) {
+      btn.ssoData = e.detail;
+      // Render the data below the button
+      dataDiv.innerHTML = '<b>Button Data:</b><br>' + Object.entries(e.detail).map(([k,v]) => `${k}: ${v}`).join('<br>');
+    });
+    // Default data for manual open
+    if (!btn.ssoData) {
+      btn.ssoData = { userHint: 'demo@example.com', provider: 'MockSSO' };
+    }
+    btn.addEventListener('click', function(e) {
+      const event = new CustomEvent('ssoButtonClicked', { detail: btn.ssoData });
+      btn.dispatchEvent(event);
+    });
+  }
+</script>

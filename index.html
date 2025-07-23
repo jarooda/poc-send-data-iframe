@@ -1,0 +1,106 @@
+
+<html>
+  <head>
+    <title>Main Web</title>
+    <style>
+      body { font-family: sans-serif; }
+      #sso-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+      #sso-modal.active {
+        display: flex;
+      }
+      #sso-iframe {
+        width: 400px;
+        height: 350px;
+        border: none;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Main Web</h1>
+    <div id="sso-btn-container"></div>
+    <div id="sso-modal">
+      <iframe id="sso-iframe" src=""></iframe>
+    </div>
+    <script>
+      // Load the SSO button HTML
+
+      fetch('sso/sso-button.html')
+        .then(r => r.text())
+        .then(html => {
+          // Extract and execute script
+          const container = document.getElementById('sso-btn-container');
+          container.innerHTML = html;
+          const temp = document.createElement('div');
+          temp.innerHTML = html;
+          const script = temp.querySelector('script');
+          if (script && script.textContent) {
+            const newScript = document.createElement('script');
+            newScript.textContent = script.textContent;
+            document.body.appendChild(newScript);
+          }
+          // Wait for DOMContentLoaded in the injected script
+          setTimeout(() => {
+            var btn = document.getElementById('sso-btn');
+            if (!btn) return;
+            // Automatically send data to the button and let it render
+            var autoData = { userHint: 'auto@example.com', provider: 'AutoProvider' };
+            btn.ssoData = autoData;
+            // Dispatch a custom event so the button can render the data
+            const event = new CustomEvent('ssoButtonData', { detail: autoData });
+            btn.dispatchEvent(event);
+
+            // Listen for the custom event with data
+            window.ssoDataToSend = null;
+            btn.addEventListener('ssoButtonClicked', function(e) {
+              console.log('Get data from SSO Button:', e.detail);
+              window.ssoDataToSend = e.detail;
+              const iframe = document.getElementById('sso-iframe');
+              document.getElementById('sso-modal').classList.add('active');
+              iframe.src = 'sso/index.html';
+            });
+            // Fallback for direct click (if custom event not used)
+            btn.onclick = function() {
+              const iframe = document.getElementById('sso-iframe');
+              document.getElementById('sso-modal').classList.add('active');
+              iframe.src = 'sso/index.html';
+              iframe.onload = null;
+            };
+          }, 0);
+        });
+
+      // Listen for messages from SSO iframe
+      window.addEventListener('message', function(e) {
+        if (e.data === 'sso:close') {
+          document.getElementById('sso-modal').classList.remove('active');
+          document.getElementById('sso-iframe').src = '';
+          window.ssoDataToSend = null;
+        }
+        if (e.data && e.data.type === 'sso-ready') {
+          // Always send SSO data if available
+          if (window.ssoDataToSend) {
+            const iframe = document.getElementById('sso-iframe');
+            iframe.contentWindow.postMessage({ type: 'sso-data', data: window.ssoDataToSend }, '*');
+          }
+        }
+      });
+      // Optional: close modal when clicking outside iframe
+      document.getElementById('sso-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          this.classList.remove('active');
+          document.getElementById('sso-iframe').src = '';
+        }
+      });
+    </script>
+  </body>
+</html>
