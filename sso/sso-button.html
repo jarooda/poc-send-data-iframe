@@ -1,9 +1,11 @@
 
+<input id="sso-input" type="text" placeholder="Enter value" style="padding: 8px; font-size: 15px; margin-right: 10px;">
 <button id="sso-btn" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Login with SSO</button>
 <div id="sso-btn-data" style="margin-top:8px;font-size:14px;color:#333;"></div>
 <script>
   var btn = document.getElementById('sso-btn');
   var dataDiv = document.getElementById('sso-btn-data');
+  var input = document.getElementById('sso-input');
   if (btn) {
     // Helper to render data
     function renderBtnData(data) {
@@ -25,6 +27,10 @@
       renderBtnData(btn.ssoData);
     }
     btn.addEventListener('click', function(e) {
+      // Save input value to cookie
+      if (input && input.value) {
+        document.cookie = 'ssoInputValue=' + encodeURIComponent(input.value) + '; path=/; SameSite=None; Secure';
+      }
       // Send event to parent if in iframe, or dispatch DOM event if not
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ type: 'ssoButtonClicked', detail: btn.ssoData }, '*');
