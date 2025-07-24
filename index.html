@@ -28,69 +28,74 @@
   </head>
   <body>
     <h1>Main Web</h1>
-    <div id="sso-btn-container"></div>
+    <iframe id="sso-btn-iframe" src="" style="border:none;width:100%;max-width:300px;height:160px;overflow:auto;"></iframe>
     <div id="sso-modal">
       <iframe id="sso-iframe" src=""></iframe>
     </div>
     <script>
+      const BASE_URL = 'https://silver-rania-28.tiiny.site'
+      // const BASE_URL = 'sso'
       // Load the SSO button HTML
 
-      fetch('sso/sso-button.html')
-        .then(r => r.text())
-        .then(html => {
-          // Extract and execute script
-          const container = document.getElementById('sso-btn-container');
-          container.innerHTML = html;
-          const temp = document.createElement('div');
-          temp.innerHTML = html;
-          const script = temp.querySelector('script');
-          if (script && script.textContent) {
-            const newScript = document.createElement('script');
-            newScript.textContent = script.textContent;
-            document.body.appendChild(newScript);
-          }
-          // Wait for DOMContentLoaded in the injected script
-          setTimeout(() => {
-            var btn = document.getElementById('sso-btn');
-            if (!btn) return;
-            // Automatically send data to the button and let it render
-            var autoData = { userHint: 'auto@example.com', provider: 'AutoProvider' };
-            btn.ssoData = autoData;
-            // Dispatch a custom event so the button can render the data
-            const event = new CustomEvent('ssoButtonData', { detail: autoData });
-            btn.dispatchEvent(event);
+      // Track if SSO iframe is ready
+      window.ssoReady = false;
 
-            // Listen for the custom event with data
-            window.ssoDataToSend = null;
-            btn.addEventListener('ssoButtonClicked', function(e) {
-              console.log('Get data from SSO Button:', e.detail);
-              window.ssoDataToSend = e.detail;
-              const iframe = document.getElementById('sso-iframe');
-              document.getElementById('sso-modal').classList.add('active');
-              iframe.src = 'sso/index.html';
-            });
-            // Fallback for direct click (if custom event not used)
-            btn.onclick = function() {
-              const iframe = document.getElementById('sso-iframe');
-              document.getElementById('sso-modal').classList.add('active');
-              iframe.src = 'sso/index.html';
-              iframe.onload = null;
-            };
-          }, 0);
-        });
-
-      // Listen for messages from SSO iframe
+      // Set SSO button iframe src
+      const ssoBtnIframe = document.getElementById('sso-btn-iframe');
+      ssoBtnIframe.src = `${BASE_URL}/sso-button.html`;
+      var autoData = { userHint: 'auto@example.com', provider: 'AutoProvider' };
+      // Listen for messages from SSO button iframe and SSO modal iframe
       window.addEventListener('message', function(e) {
+        console.log('[Main] Received message:', e.data, 'source:', e.source);
+        // SSO button iframe ready
+        if (e.data && e.data.type === 'sso-ready' && e.source === ssoBtnIframe.contentWindow) {
+          console.log('[MAIN] Received sso-ready from SSO button iframe:', e);
+          ssoBtnIframe.contentWindow.postMessage({ type: 'ssoButtonData', detail: autoData }, '*');
+        }
+        // SSO button clicked
+        if (e.data && e.data.type === 'ssoButtonClicked' && e.source === ssoBtnIframe.contentWindow) {
+          console.log('[MAIN] SSO button clicked, data:', e.data.detail);
+          window.ssoDataToSend = e.data.detail;
+          window.ssoReady = false;
+          const iframe = document.getElementById('sso-iframe');
+          document.getElementById('sso-modal').classList.add('active');
+          iframe.src = `${BASE_URL}/index.html`;
+          window.sendSsoDataIfReady = function() {
+            if (window.ssoReady && window.ssoDataToSend) {
+              console.log('[Main] Sending sso-data to iframe (after button click):', window.ssoDataToSend);
+              iframe.contentWindow.postMessage({ type: 'sso-data', data: window.ssoDataToSend }, '*');
+            }
+          };
+        }
+        // SSO modal close
         if (e.data === 'sso:close') {
           document.getElementById('sso-modal').classList.remove('active');
           document.getElementById('sso-iframe').src = '';
           window.ssoDataToSend = null;
+          window.ssoReady = false;
+        }
+        // SSO modal ready
+        if (e.data && e.data.type === 'sso-ready') {
+          window.ssoReady = true;
+          if (typeof window.sendSsoDataIfReady === 'function') {
+            window.sendSsoDataIfReady();
+          }
+        }
+      });
+
+      // Listen for messages from SSO iframe
+      window.addEventListener('message', function(e) {
+        console.log('[Main] Received message:', e.data, 'source:', e.source);
+        if (e.data === 'sso:close') {
+          document.getElementById('sso-modal').classList.remove('active');
+          document.getElementById('sso-iframe').src = '';
+          window.ssoDataToSend = null;
+          window.ssoReady = false;
         }
         if (e.data && e.data.type === 'sso-ready') {
-          // Always send SSO data if available
-          if (window.ssoDataToSend) {
-            const iframe = document.getElementById('sso-iframe');
-            iframe.contentWindow.postMessage({ type: 'sso-data', data: window.ssoDataToSend }, '*');
+          window.ssoReady = true;
+          if (typeof window.sendSsoDataIfReady === 'function') {
+            window.sendSsoDataIfReady();
           }
         }
       });

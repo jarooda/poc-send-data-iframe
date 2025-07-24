@@ -5,19 +5,40 @@
   var btn = document.getElementById('sso-btn');
   var dataDiv = document.getElementById('sso-btn-data');
   if (btn) {
+    // Helper to render data
+    function renderBtnData(data) {
+      console.log('[SSO-BUTTON] Rendering data:', data);
+      dataDiv.innerHTML = '<b>Button Data:</b><br>' + Object.entries(data).map(([k,v]) => `${k}: ${v}`).join('<br>');
+    }
     // Listen for data from parent
     btn.addEventListener('ssoButtonData', function(e) {
+      console.log('[SSO-BUTTON] Received ssoButtonData event:', e.detail);
       btn.ssoData = e.detail;
-      // Render the data below the button
-      dataDiv.innerHTML = '<b>Button Data:</b><br>' + Object.entries(e.detail).map(([k,v]) => `${k}: ${v}`).join('<br>');
+      renderBtnData(e.detail);
     });
     // Default data for manual open
     if (!btn.ssoData) {
       btn.ssoData = { userHint: 'demo@example.com', provider: 'MockSSO' };
     }
+    // Always render if data is present (covers missed event)
+    if (btn.ssoData) {
+      renderBtnData(btn.ssoData);
+    }
     btn.addEventListener('click', function(e) {
-      const event = new CustomEvent('ssoButtonClicked', { detail: btn.ssoData });
-      btn.dispatchEvent(event);
+      // Send event to parent if in iframe, or dispatch DOM event if not
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'ssoButtonClicked', detail: btn.ssoData }, '*');
+      } else {
+        const event = new CustomEvent('ssoButtonClicked', { detail: btn.ssoData });
+        btn.dispatchEvent(event);
+      }
     });
+    // Notify parent that SSO button is ready
+    if (window.parent) {
+      setTimeout(() => {
+        console.log('[SSO-BUTTON] Posting sso-ready to parent');
+        window.parent.postMessage({ type: 'sso-ready' }, '*');
+      }, 0);
+    }
   }
 </script>
